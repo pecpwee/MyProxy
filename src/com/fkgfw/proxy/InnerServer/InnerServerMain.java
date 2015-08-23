@@ -1,7 +1,7 @@
 package com.fkgfw.proxy.InnerServer;
 
-import com.fkgfw.proxy.Config;
-import com.fkgfw.proxy.Secure.TransSecuritySupport;
+import com.fkgfw.proxy.Config.ConfigManager;
+import com.fkgfw.proxy.Config.ConfigPojo;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -15,17 +15,16 @@ public class InnerServerMain {
 
     ExecutorService threadPool;
 
-    public InnerServerMain() {
+    public InnerServerMain(ConfigPojo configObj) {
 
         final ServerSocket parentSocket;
         threadPool = Executors.newCachedThreadPool();
         try {
-            parentSocket = new ServerSocket(Config.InnerServerPort);
-
+            parentSocket = new ServerSocket(configObj.getInnerServerPort());
             while (true) {
                 Socket socket = parentSocket.accept();
-                threadPool.submit(new InnerWorkingTask(socket));
-                System.out.println("Inner Server has accept connection");
+                System.out.println("accepted inner connection");
+                threadPool.submit(new InnerWorkingTask(socket,configObj));
 
             }
 

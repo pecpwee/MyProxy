@@ -1,12 +1,14 @@
 package com.fkgfw.proxy;
 
+import com.fkgfw.proxy.Config.ConfigPojo;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.Socket;
 
-
-import static com.fkgfw.proxy.Utils.byteArray2ASCStr;
 import static com.fkgfw.proxy.Utils.byteArray2HexString;
+
 
 
 public abstract class BaseServerTask implements Runnable {
@@ -24,6 +26,7 @@ public abstract class BaseServerTask implements Runnable {
     public static String ADDR_TYPE_HOSTNAME = "03";
     public static String ADDR_TYPE_IPV6 = "05";
 
+
     public enum ADDR_TYPE {
         IPV4, HOSTNAME, IPV6
     }
@@ -33,15 +36,16 @@ public abstract class BaseServerTask implements Runnable {
         try {
             while ((receiveCount = in.read(buffer)) != -1) {
                 if (receiveCount > 0) {
-                    out.write(buffer,0,receiveCount);
+                    out.write(buffer, 0, receiveCount);
                     out.flush();
-                    System.out.println("transmit:" + byteArray2HexString(buffer, 20));
+//                    System.out.println("transmit:" + byteArray2HexString(buffer, 20));
                 }
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
 }

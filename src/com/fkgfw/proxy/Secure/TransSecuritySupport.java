@@ -1,7 +1,8 @@
 package com.fkgfw.proxy.Secure;
 
 
-import com.fkgfw.proxy.Config;
+import com.fkgfw.proxy.Config.ConfigManager;
+import com.fkgfw.proxy.Config.ConfigPojo;
 
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
@@ -22,10 +23,12 @@ public class TransSecuritySupport {
     byte[] iv = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     IvParameterSpec ivspec = new IvParameterSpec(iv);
 
-    public TransSecuritySupport() {
+    ConfigPojo configObj;
+
+    public TransSecuritySupport(ConfigPojo configObj) {
         Security.addProvider(new com.sun.crypto.provider.SunJCE());
         try {
-            deskey = getKeyFromString(Config.ENCRYPT_SEED);
+            deskey = getKeyFromString(configObj.getENCRYPT_SEED());
             //生成Cipher对象，指定其支持AES算法
 
 
@@ -34,6 +37,7 @@ public class TransSecuritySupport {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
+        this.configObj=configObj;
 
 
     }
@@ -44,7 +48,7 @@ public class TransSecuritySupport {
             mEncryptCipher = Cipher.getInstance("AES/CTR/NoPadding/");//It's very very important for networking.
             //if it's just "AES" ,it always block when read() invoke,because it expect more padding,but there is none
 
-            mEncryptCipher.init(Cipher.ENCRYPT_MODE, getKeyFromString(Config.ENCRYPT_SEED),ivspec);
+            mEncryptCipher.init(Cipher.ENCRYPT_MODE, getKeyFromString(configObj.getENCRYPT_SEED()), ivspec);
 
 
         } catch (NoSuchAlgorithmException e) {
@@ -65,7 +69,7 @@ public class TransSecuritySupport {
     public Cipher getDecryptCipher() {
         try {
             mDecryptCipher = Cipher.getInstance("AES/CTR/NoPadding/");
-            mDecryptCipher.init(Cipher.DECRYPT_MODE, getKeyFromString(Config.ENCRYPT_SEED), ivspec);
+            mDecryptCipher.init(Cipher.DECRYPT_MODE, getKeyFromString(configObj.getENCRYPT_SEED()), ivspec);
 
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();

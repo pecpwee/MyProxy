@@ -1,6 +1,7 @@
 package com.fkgfw.proxy.InnerServer;
 
 import com.fkgfw.proxy.*;
+import com.fkgfw.proxy.Config.ConfigPojo;
 import com.fkgfw.proxy.Secure.TransSecuritySupport;
 
 import javax.crypto.CipherInputStream;
@@ -16,10 +17,12 @@ public class InnerWorkingTask extends BaseServerTask {
     private ADDR_TYPE address_type;
     private Socket targetSocket;
     private TransSecuritySupport mSecurity;
+    private ConfigPojo configObj;
 
-    public InnerWorkingTask(Socket socket) {
+    public InnerWorkingTask(Socket socket, ConfigPojo configObj) {
         this.targetSocket = socket;
-        this.mSecurity =new TransSecuritySupport();
+        this.mSecurity =new TransSecuritySupport(configObj);
+        this.configObj=configObj;
     }
 
     @Override
@@ -32,18 +35,21 @@ public class InnerWorkingTask extends BaseServerTask {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        finally {
+            System.out.println("close connection");
+        }
 
     }
 
     private void startImpl(Socket socket) throws IOException, InterruptedException {
-        final byte[] buffer = new byte[Config.BufferSize];
+        final byte[] buffer = new byte[configObj.getBufferSize()];
 
 
         final InputStream localin = socket.getInputStream();
         final OutputStream localOut = socket.getOutputStream();
 
-        Socket OuterSocket = new Socket(Config.OuterServerIP, Config.OuterServerPort);
-
+        Socket OuterSocket = new Socket(configObj.getOuterServerIP(), configObj.getOuterServerPort());
+        System.out.println("connected to Outer server");
         final CipherOutputStream OuterOUT = new CipherOutputStream(OuterSocket.getOutputStream(), mSecurity.getEncryptCipher());
         final CipherInputStream OuterIN = new CipherInputStream(OuterSocket.getInputStream(), mSecurity.getDecryptCipher());
         //TODO
@@ -62,7 +68,7 @@ public class InnerWorkingTask extends BaseServerTask {
         Thread tGetFromOuterServer = new Thread(new Runnable() {
             @Override
             public void run() {
-                final byte[] bufferAnother = new byte[Config.BufferSize];
+                final byte[] bufferAnother = new byte[configObj.getBufferSize()];
                 forwarding(OuterIN, localOut, bufferAnother);
 
             }
@@ -70,10 +76,14 @@ public class InnerWorkingTask extends BaseServerTask {
 
         tSendOuterServer.start();
         tGetFromOuterServer.start();
+        System.out.println("transmission started");
 
         tSendOuterServer.join();
         tGetFromOuterServer.join();
-        System.out.println("Inner connection exit");
+        socket.close();
+        OuterSocket.close();
+
+
     }
 
 

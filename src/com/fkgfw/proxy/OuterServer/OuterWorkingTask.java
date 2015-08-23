@@ -1,12 +1,15 @@
 package com.fkgfw.proxy.OuterServer;
 
 import com.fkgfw.proxy.*;
+import com.fkgfw.proxy.Config.ConfigManager;
+import com.fkgfw.proxy.Config.ConfigPojo;
 import com.fkgfw.proxy.Secure.TransSecuritySupport;
 
 import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 
 import static com.fkgfw.proxy.Utils.*;
 import static com.fkgfw.proxy.Utils.hexStringToByteArray;
@@ -14,20 +17,24 @@ import static com.fkgfw.proxy.Utils.hexStringToByteArray;
 
 public class OuterWorkingTask extends BaseServerTask {
 
-    Socket targetSocket;
-    TransSecuritySupport mSecurity;
-
+    private Socket targetSocket;
+    private TransSecuritySupport mSecurity;
+    private ConfigPojo configObj;
     private ADDR_TYPE address_type;
 
-    public OuterWorkingTask(Socket socket) {
+    public OuterWorkingTask(Socket socket, ConfigPojo configObj) {
         this.targetSocket = socket;
-        this.mSecurity = new TransSecuritySupport();
+        this.mSecurity = new TransSecuritySupport(configObj);
+        this.configObj = configObj;
     }
 
     @Override
     public void run() {
         try {
             startImpl(targetSocket);
+        } catch (SocketException e) {
+//            System.out.println("connection closed");
+
         } catch (IOException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -37,34 +44,34 @@ public class OuterWorkingTask extends BaseServerTask {
 
     private void startImpl(Socket socket) throws IOException, InterruptedException {
 
-//        Socket localSender = new Socket(Config.ip, Config.ServerPort);
-        final byte[] buffer = new byte[Config.BufferSize];
+//        Socket localSender = new Socket(ConfigManager.ip, ConfigManager.ServerPort);
+        final byte[] buffer = new byte[configObj.getBufferSize()];
 
 
         int readCount = 0;
 
 
-       final CipherInputStream InnerIN = new CipherInputStream(socket.getInputStream(),mSecurity.getDecryptCipher());
-        final CipherOutputStream InnerOut = new CipherOutputStream(socket.getOutputStream(),mSecurity.getEncryptCipher());
- //       final InputStream InnerIN =socket.getInputStream();
- //       final OutputStream InnerOut =socket.getOutputStream();
+        final CipherInputStream InnerIN = new CipherInputStream(socket.getInputStream(), mSecurity.getDecryptCipher());
+        final CipherOutputStream InnerOut = new CipherOutputStream(socket.getOutputStream(), mSecurity.getEncryptCipher());
+        //       final InputStream InnerIN =socket.getInputStream();
+        //       final OutputStream InnerOut =socket.getOutputStream();
 //todo
         readCount = InnerIN.read(buffer);
         if (readCount <= 0) {
             System.out.println("connection stop ...");
             return;
         }
-        String msgShake = byteArray2HexString(buffer,readCount);
+        String msgShake = byteArray2HexString(buffer, readCount);
 
         if (!msgShake.equals(SHAKE_RECEIVE)) {
             return;
         }
-        System.out.println(msgShake);
+//        System.out.println(msgShake);
 
 
         InnerOut.write(hexStringToByteArray(SHAKE_SEND));
         InnerOut.flush();
-        System.out.println("sending shake£º" + SHAKE_SEND);
+//        System.out.println("sending shakeï¼š" + SHAKE_SEND);
 
 
         readCount = InnerIN.read(buffer);
@@ -72,16 +79,13 @@ public class OuterWorkingTask extends BaseServerTask {
             System.out.println("connection stop ...");
             return;
         }
-        String request = byteArray2HexString(buffer,readCount);
+        String request = byteArray2HexString(buffer, readCount);
 
-        System.out.println(request);
+//        System.out.println(request);
         if (!request.startsWith(REQUEST_HEADER)) {
             System.out.println("not a proper sock5 request");
             return;
         }
-
-
-
 
 
         String request_addr = null;
@@ -93,7 +97,7 @@ public class OuterWorkingTask extends BaseServerTask {
             //hostname typee
 //            System.out.println("it's an url request");
             int addrLength = Integer.parseInt(request.substring(8, 10), 16);//hex STRING to int
-            //substring ×ó¿ªÓÒ±Õ
+            //substring å·¦å¼€å³é—­
             request_addr = byteArray2DecimalStr(buffer, 10 / 2, addrLength);
             request_port = getPortFromByteArrayAtIPtype(buffer, REQUEST_HEADER_BYTE_OFFSET + addrLength);
             address_type = ADDR_TYPE.HOSTNAME;
@@ -105,10 +109,7 @@ public class OuterWorkingTask extends BaseServerTask {
             address_type = ADDR_TYPE.IPV4;
         }
 
-        System.out.println("address:" + request_addr + " port:" + request_port);
-
-
-
+        System.out.println(request_addr + ":" + request_port);
 
 
         //write back sccuss replya
@@ -117,7 +118,7 @@ public class OuterWorkingTask extends BaseServerTask {
             case HOSTNAME:
                 InnerOut.write(hexStringToByteArray(RESPONSE_SUCCESS_HEADER
                                 + request.substring(6)
-                ));//Í·²¿+ºóÃæÔ­Ñù·µ»Ø¡£
+                ));//å¤´éƒ¨+åŽé¢åŽŸæ ·è¿”å›žã€‚
                 break;
             case IPV4:
                 InnerOut.write(hexStringToByteArray(RESPONSE_SUCCESS_HEADER
@@ -131,7 +132,6 @@ public class OuterWorkingTask extends BaseServerTask {
         InnerOut.flush();
 
 
-
         final Socket websiteSocket = new Socket(request_addr, request_port);
         final BufferedOutputStream websiteOut = new BufferedOutputStream(websiteSocket.getOutputStream());
         final BufferedInputStream websiteIn = new BufferedInputStream(websiteSocket.getInputStream());
@@ -140,7 +140,7 @@ public class OuterWorkingTask extends BaseServerTask {
         Thread threadWriteOut = new Thread(new Runnable() {
             @Override
             public void run() {
-                forwarding(InnerIN,websiteOut,buffer);
+                forwarding(InnerIN, websiteOut, buffer);
             }
         });
 
@@ -148,8 +148,8 @@ public class OuterWorkingTask extends BaseServerTask {
         Thread threadWriteBack = new Thread(new Runnable() {
             @Override
             public void run() {
-                byte[] bufferAno = new byte[Config.BufferSize];
-                forwarding(websiteIn,InnerOut,bufferAno);
+                byte[] bufferAno = new byte[configObj.getBufferSize()];
+                forwarding(websiteIn, InnerOut, bufferAno);
             }
         });
 
@@ -158,6 +158,8 @@ public class OuterWorkingTask extends BaseServerTask {
 
         threadWriteOut.join();
         threadWriteBack.join();
+        socket.close();
+        websiteSocket.close();
         System.out.println("Outer connection exit");
 
 

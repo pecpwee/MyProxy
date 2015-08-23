@@ -1,6 +1,6 @@
 package com.fkgfw.proxy.OuterServer;
 
-import com.fkgfw.proxy.*;
+import com.fkgfw.proxy.Config.ConfigPojo;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -14,17 +14,17 @@ public class OuterServerMain {
 
     ExecutorService threadPool;
 
-    public OuterServerMain() {
+    public OuterServerMain(ConfigPojo configObj) {
 
         final ServerSocket parentSocket;
         threadPool = Executors.newCachedThreadPool();
         try {
-            parentSocket = new ServerSocket(Config.OuterServerPort);
+            parentSocket = new ServerSocket(configObj.getOuterServerPort());
 
             while (true) {
                 Socket socket = parentSocket.accept();
-                threadPool.submit(new OuterWorkingTask(socket));
-                System.out.println("Outer Server has accept connection");
+                threadPool.submit(new OuterWorkingTask(socket,configObj));
+//                System.out.println("Outer Server has accept connection");
 
             }
 
