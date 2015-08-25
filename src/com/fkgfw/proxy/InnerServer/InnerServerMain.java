@@ -1,6 +1,5 @@
 package com.fkgfw.proxy.InnerServer;
 
-import com.fkgfw.proxy.Config.ConfigManager;
 import com.fkgfw.proxy.Config.ConfigPojo;
 
 import java.io.IOException;

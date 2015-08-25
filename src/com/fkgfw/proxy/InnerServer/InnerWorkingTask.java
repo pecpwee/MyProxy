@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+import static com.fkgfw.proxy.Utils.isByteArrayEqual;
+
 
 public class InnerWorkingTask extends BaseServerTask {
 
@@ -36,17 +38,31 @@ public class InnerWorkingTask extends BaseServerTask {
             e.printStackTrace();
         }
         finally {
-            System.out.println("close connection");
+            System.out.println("inner close connection");
         }
 
     }
 
     private void startImpl(Socket socket) throws IOException, InterruptedException {
         final byte[] buffer = new byte[configObj.getBufferSize()];
+        final InputStream broswerIn = socket.getInputStream();
+        final OutputStream broswerOut = socket.getOutputStream();
 
+        int  bufferReadCount;
 
-        final InputStream localin = socket.getInputStream();
-        final OutputStream localOut = socket.getOutputStream();
+        bufferReadCount = broswerIn.read(buffer);
+        if (bufferReadCount <= 0) {
+            return;
+        }
+
+        if (!isByteArrayEqual(SHAKE_RECEIVE, buffer, 0)) {
+            return;
+        }
+
+        broswerOut.write(SHAKE_SEND);
+        broswerOut.flush();
+//        System.out.println("sending shake£º" + SHAKE_SEND);
+
 
         Socket OuterSocket = new Socket(configObj.getOuterServerIP(), configObj.getOuterServerPort());
         System.out.println("connected to Outer server");
@@ -60,7 +76,7 @@ public class InnerWorkingTask extends BaseServerTask {
         Thread tSendOuterServer = new Thread(new Runnable() {
             @Override
             public void run() {
-                forwarding(localin, OuterOUT, buffer);
+                forwarding(broswerIn, OuterOUT, buffer);
             }
         });
 
@@ -69,14 +85,14 @@ public class InnerWorkingTask extends BaseServerTask {
             @Override
             public void run() {
                 final byte[] bufferAnother = new byte[configObj.getBufferSize()];
-                forwarding(OuterIN, localOut, bufferAnother);
+                forwarding(OuterIN, broswerOut, bufferAnother);
 
             }
         });
 
         tSendOuterServer.start();
         tGetFromOuterServer.start();
-        System.out.println("transmission started");
+//        System.out.println("inner transmission started");
 
         tSendOuterServer.join();
         tGetFromOuterServer.join();
